@@ -4,7 +4,7 @@ A python script I made for downloading videos from [the Unus Annus Archive](http
 
 ## TUAA_downloader.py
 
-The (maybe) stable version of TUAA downloader.
+The (maybe) stable version of TUAA downloader. (Tested on *Windows 10* and *Kali Linux*, working fine)
 
 Their [Downloader application](https://github.com/TheUnusAnnusArchive/TUAA-Downloader/) doesn't work most of the times (at least for me) and I'm too lazy to try to fix it so I decided to do it in Python.
 
