@@ -229,16 +229,16 @@ class API():
     <poster>{show_path}\\Season {sf}\\Unus Annus S{s}E{e}\\metadata\\Unus Annus S{s}E{e}.jpg</poster>
   </art>
   <actor>
-    <name>Mark Fishbach</name>
-    <role>Markiplier</role>
-    <type>Actor</type>
-    <sortorder>0</sortorder>
-  </actor>
-  <actor>
     <name>Ethan Nestor</name>
     <role>CrankGameplays</role>
     <type>Actor</type>
-    <sortorder>1</sortorder>
+    <thumb>E:\\HomeTheater\\Server\\Jellyfin\\Server\\metadata\\People\\E\\Ethan Nestor\\folder.jpg</thumb>
+  </actor>
+  <actor>
+    <name>Mark Fishbach</name>
+    <role>Markiplier</role>
+    <type>Actor</type>
+    <thumb>E:\\HomeTheater\\Server\\Jellyfin\\Server\\metadata\\People\\M\\Mark Fishbach\\folder.jpg</thumb>
   </actor>
   <episode>{e}</episode>
   <season>{s}</season>
