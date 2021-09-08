@@ -2,7 +2,7 @@
 
 A python script I made for downloading videos from [the Unus Annus Archive](https://unusannusarchive.tk/).
 
-## TUAA_Downloader.py
+## TUAA_downloader.py
 
 The (maybe) stable version of TUAA downloader.
 
@@ -10,9 +10,9 @@ Their [Downloader application](https://github.com/TheUnusAnnusArchive/TUAA-Downl
 
 Usage: `$ python TUAA_downloader.py <season> <episode> <quality>`
 
-`<season>`: Season number.
-`<episode>`: Episode number.
-`<quality>`: \[Optional argument\] Set the quality to download (`2160`, `1440`, `1080`, `720`, `480`, `360`, or `240`)
+- `<season>`: Season number.
+- `<episode>`: Episode number.
+- `<quality>`: \[Optional argument\] Set the quality to download (`2160`, `1440`, `1080`, `720`, `480`, `360`, or `240`)
 
 This python script can be imported to another script so you can use the API.
 
