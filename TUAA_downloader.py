@@ -312,13 +312,19 @@ class Main():
 
 
 if __name__ == "__main__":
-    s = int(sys.argv[1])
-    e = int(sys.argv[2])
+    try:
+        s = int(sys.argv[1])
+        e = int(sys.argv[2])
+
+    except(IndexError, ValueError):
+        print(f"USAGE: {sys.argv[0]} <season number> <episode number>")
+        sys.exit(1)
+
     try:
         q = int(sys.argv[3])
 
     except IndexError:
-        q = 1080
+        q = 1080  # Default quality
 
     sys.exit(Main(
         season=s,
