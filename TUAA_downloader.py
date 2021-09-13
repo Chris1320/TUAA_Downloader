@@ -71,11 +71,17 @@ class API():
             "nfo": "nfo"
         }
 
-    def _download(self, url: str, fname: str):
+    def _download(self, url: str, fname: str, s: int = None, e: int = None):
         resp = requests.get(url, stream=True)
         total = int(resp.headers.get('content-length', 0))
+        if s is None or e is None:
+            desc = f"Downloading to {fname}..."
+
+        else:
+            desc = f"Downloading S{s}E{e}..."
+
         with open(fname, 'wb') as file, tqdm(
-            desc=fname,
+            desc=desc,
             total=total,
             unit='iB',
             unit_scale=True,
@@ -162,7 +168,7 @@ class API():
             raise ValueError("Invalid quality parameter!")
 
         # return requests.get(f"{self.cdn}/{season}/{episode}/{quality}.{self.extensions['video']}").content
-        return self._download(f"{self.cdn}/{season}/{episode}/{quality}.{self.extensions['video']}", filepath)
+        return self._download(f"{self.cdn}/{season}/{episode}/{quality}.{self.extensions['video']}", filepath, season, episode)
 
     def get_subtitle(self, s: int, e: int, language: str = None, dl_all: bool = False):
         """
