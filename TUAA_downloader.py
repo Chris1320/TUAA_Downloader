@@ -219,9 +219,6 @@ class API():
         meta = json.loads(self.get_metadata(s, e).content)
         title = meta.get("title", "Unus Annus")
         plot = meta.get("description", "")
-        runtime = meta.get("duration", 0)
-        if runtime > 0:
-            runtime = round((runtime / 60) / 60)  # Convert to hours
 
         return f"""<?xml version="1.0" encoding="utf-8" standalone="yes"?>
 <episodedetails>
@@ -230,21 +227,22 @@ class API():
   <lockdata>true</lockdata>
   <title>{title}</title>
   <imdbid>tt11289784</imdbid>
-  <runtime>{runtime}</runtime>
   <art>
     <poster>{show_path}\\Season {sf}\\Unus Annus S{s}E{e}\\metadata\\Unus Annus S{s}E{e}.jpg</poster>
   </art>
   <actor>
-    <name>Ethan Nestor</name>
-    <role>CrankGameplays</role>
-    <type>Actor</type>
-    <thumb>E:\\HomeTheater\\Server\\Jellyfin\\Server\\metadata\\People\\E\\Ethan Nestor\\folder.jpg</thumb>
-  </actor>
-  <actor>
     <name>Mark Fishbach</name>
     <role>Markiplier</role>
     <type>Actor</type>
+    <sortorder>0</sortorder>
     <thumb>E:\\HomeTheater\\Server\\Jellyfin\\Server\\metadata\\People\\M\\Mark Fishbach\\folder.jpg</thumb>
+  </actor>
+  <actor>
+    <name>Ethan Nestor</name>
+    <role>CrankGameplays</role>
+    <type>Actor</type>
+    <sortorder>1</sortorder>
+    <thumb>E:\\HomeTheater\\Server\\Jellyfin\\Server\\metadata\\People\\E\\Ethan Nestor\\folder.jpg</thumb>
   </actor>
   <episode>{e}</episode>
   <season>{s}</season>
@@ -310,14 +308,45 @@ class Main():
         print("Done!")
         return 0
 
+def __dl(s, e):
+    """
+    A private function to be used below.
+    """
+
+    print(f"Downloading S{s}E{e}...")
+    return Main(
+        season=s,
+        episode=e,
+        quality=q
+        ).main()
+
 
 if __name__ == "__main__":
     try:
         s = int(sys.argv[1])
-        e = int(sys.argv[2])
+        if '-' not in sys.argv[2]:
+            e = int(sys.argv[2])
+
+        else:
+            e = (int(sys.argv[2].partition('-')[0]), int(sys.argv[2].partition('-')[2]))
+            if e[0] == e[1]:
+                e = e[0]
+
+            elif e[0] > e[1]:
+                i = -1  # Generate a range object with step of -1; Decrement.
+
+            else:
+                i = 1
 
     except(IndexError, ValueError):
-        print(f"USAGE: {sys.argv[0]} <season number> <episode number>")
+        print(f"USAGE: {sys.argv[0]} <season number> <episode number> <optional quality>")
+        print(f"USAGE: {sys.argv[0]} <season number> <episode number range> <optional quality>")
+        print()
+        print("EXAMPLES:")
+        print(f"    {sys.argv[0]} 1 3        # Downloads Season 1 Episode 3")
+        print(f"    {sys.argv[0]} 0 6 720    # Downloads Season 0 Episode 6 in 720p")
+        print(f"    {sys.argv[0]} 1 2-5      # Downloads Season 1 Episodes 2, 3, 4, and 5.")
+        print()
         sys.exit(1)
 
     try:
@@ -326,8 +355,22 @@ if __name__ == "__main__":
     except IndexError:
         q = 1080  # Default quality
 
-    sys.exit(Main(
-        season=s,
-        episode=e,
-        quality=q
-    ).main())
+    if type(e) is int:
+        sys.exit(__dl(s, e))
+
+    else:
+        ec = 0  # Error code
+        if i == -1:
+            e_range = range(e[0], (e[1] - 1), i)
+
+        else:
+            e_range = range(e[0], (e[1] + 1), i)
+
+        print(f"Downloading S{s}E{e[0]}-{e[1]}... ({len(e_range)} episodes)")
+
+        for current_episode in e_range:
+            print()
+            ec += __dl(s, current_episode)
+            pass
+
+        sys.exit(ec)
