@@ -61,6 +61,10 @@ from tqdm import tqdm
 
 class API():
     def __init__(self):
+        """
+        The initialization method of API() class.
+        """
+
         self.endpoint = "https://unusannusarchive.tk/api"  # This is the API that provides metadata.
         self.cdn = "https://cdn.unusannusarchive.tk"  # This where the video files are stored.
 
@@ -70,8 +74,20 @@ class API():
             "thumbnail": "jpg",
             "nfo": "nfo"
         }
+        self.video_qualities = (2160, 1440, 1080, 720, 480, 360, 240)
 
     def _download(self, url: str, fname: str, s: int = None, e: int = None):
+        """
+        Download <url> with tqdm progress bar.
+
+        :param str url: The URL of the file to be downloaded.
+        :param str fname: The filename of the output; Where to write the data to
+        :param int s: Season number
+        :param int e: Episode number
+
+        :returns int: `0` if download is successful. `1` if the download is not completed. `2` if the downloaded file is larger than the expected size.
+        """
+
         resp = requests.get(url, stream=True)
         total = int(resp.headers.get('content-length', 0))
         if s is None or e is None:
@@ -87,9 +103,24 @@ class API():
             unit_scale=True,
             unit_divisor=1024
         ) as bar:
+            downloaded_size = 0
             for data in resp.iter_content(chunk_size=1024):
                 size = file.write(data)
                 bar.update(size)
+                downloaded_size += size
+
+            # * These are just for debugging. (DEV0005)
+            # print("DLS   :", downloaded_size)
+            # print("total:", total)
+
+            if downloaded_size < total:
+                return 1  # Success is False; Not successful
+
+            elif downloaded_size > total:
+                return 2  # This is suspicious if this happens.
+
+            elif downloaded_size == total:
+                return 0  # Success is True; Successful
 
     def _check(self, value: str, vtype: str):
         """
@@ -164,7 +195,7 @@ class API():
         season = self._check(season, 's')
         episode = self._check(episode, 'e')
 
-        if quality not in (2160, 1440, 1080, 720, 480, 360, 240):
+        if quality not in self.video_qualities:
             raise ValueError("Invalid quality parameter!")
 
         # return requests.get(f"{self.cdn}/{season}/{episode}/{quality}.{self.extensions['video']}").content
@@ -227,22 +258,17 @@ class API():
   <lockdata>true</lockdata>
   <title>{title}</title>
   <imdbid>tt11289784</imdbid>
-  <art>
-    <poster>{show_path}\\Season {sf}\\Unus Annus S{s}E{e}\\metadata\\Unus Annus S{s}E{e}.jpg</poster>
-  </art>
   <actor>
     <name>Mark Fishbach</name>
     <role>Markiplier</role>
     <type>Actor</type>
     <sortorder>0</sortorder>
-    <thumb>E:\\HomeTheater\\Server\\Jellyfin\\Server\\metadata\\People\\M\\Mark Fishbach\\folder.jpg</thumb>
   </actor>
   <actor>
     <name>Ethan Nestor</name>
     <role>CrankGameplays</role>
     <type>Actor</type>
     <sortorder>1</sortorder>
-    <thumb>E:\\HomeTheater\\Server\\Jellyfin\\Server\\metadata\\People\\E\\Ethan Nestor\\folder.jpg</thumb>
   </actor>
   <episode>{e}</episode>
   <season>{s}</season>
@@ -255,6 +281,7 @@ class Main():
         self.e = episode
         self.quality = quality
         self.api = API()
+        self.retries = 3  # Maximum retries
 
     def main(self):
         s = self.api._check(self.s, 's')
@@ -262,10 +289,9 @@ class Main():
         filename = f"Unus Annus S{self.s}E{self.e}"
         sf = f"Season {s}"  # Season folder
         ef = os.path.join(f"{sf}", f"Unus Annus S{self.s}E{self.e}")  # Episode folder
-        mf = os.path.join(f"{ef}", "metadata")  # Metadata folder
 
         print("Creating folder...")
-        os.makedirs(mf, exist_ok=True)
+        os.makedirs(ef, exist_ok=True)
 
         print("Downloading subtitles...")
         subs = self.api.get_subtitle(
@@ -281,7 +307,7 @@ class Main():
         )
 
         print("Writing thumbnail to file...")
-        with open(os.path.join(mf, f"{filename}.{self.api.extensions['thumbnail']}"), 'wb') as f:
+        with open(os.path.join(ef, f"thumb.{self.api.extensions['thumbnail']}"), 'wb') as f:
             f.write(poster)
 
         for lang in subs:
@@ -298,15 +324,24 @@ class Main():
 
         else:
             print("Downloading video... (Might take a long time)")
-            self.api.get_video_data(
+            video_dl_retries = 0
+            while self.api.get_video_data(
                 season=self.s,
                 episode=self.e,
                 filepath=os.path.join(ef, f"{filename}.{self.api.extensions['video']}"),
                 quality=self.quality
-            )
+            ) != 0:
+                if video_dl_retries == self.retries:
+                    print("Failed to download video and maximum retries reached.")
+                    break
+
+                os.remove(os.path.join(ef, f"{filename}.{self.api.extensions['video']}"))
+                video_dl_retries += 1
+                print(f"Video download of S{s}E{e} failed. Retrying... ({video_dl_retries}/{self.retries})")
 
         print("Done!")
         return 0
+
 
 def __dl(s, e):
     """
@@ -318,7 +353,7 @@ def __dl(s, e):
         season=s,
         episode=e,
         quality=q
-        ).main()
+    ).main()
 
 
 if __name__ == "__main__":
@@ -347,6 +382,9 @@ if __name__ == "__main__":
         print(f"    {sys.argv[0]} 0 6 720    # Downloads Season 0 Episode 6 in 720p")
         print(f"    {sys.argv[0]} 1 2-5      # Downloads Season 1 Episodes 2, 3, 4, and 5.")
         print()
+        print("AVAILABLE QUALITIES:")
+        available_qualities = ""
+        print('p, '.join(map(lambda x: available_qualities + str(x), API().video_qualities)) + 'p')
         sys.exit(1)
 
     try:
