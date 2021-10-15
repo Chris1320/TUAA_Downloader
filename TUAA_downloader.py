@@ -343,20 +343,19 @@ class Main():
         return 0
 
 
-def __dl(s, e):
-    """
-    A private function to be used below.
-    """
-
-    print(f"Downloading S{s}E{e}...")
-    return Main(
-        season=s,
-        episode=e,
-        quality=q
-    ).main()
-
-
 if __name__ == "__main__":
+    def __dl(s, e):
+        """
+        A private function to be used below.
+        """
+
+        print(f"Downloading S{s}E{e}...")
+        return Main(
+            season=s,
+            episode=e,
+            quality=q
+        ).main()
+
     try:
         s = int(sys.argv[1])
         if '-' not in sys.argv[2]:
