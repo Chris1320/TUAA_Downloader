@@ -344,7 +344,7 @@ class Main():
 
 
 if __name__ == "__main__":
-    def __dl(s, e):
+    def __dl(s, e, q):
         """
         A private function to be used below.
         """
@@ -393,7 +393,7 @@ if __name__ == "__main__":
         q = 1080  # Default quality
 
     if type(e) is int:
-        sys.exit(__dl(s, e))
+        sys.exit(__dl(s, e, q))
 
     else:
         ec = 0  # Error code
@@ -407,7 +407,7 @@ if __name__ == "__main__":
 
         for current_episode in e_range:
             print()
-            ec += __dl(s, current_episode)
+            ec += __dl(s, current_episode, q)
             pass
 
         sys.exit(ec)
