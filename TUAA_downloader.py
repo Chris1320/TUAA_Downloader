@@ -65,8 +65,10 @@ class API():
         The initialization method of API() class.
         """
 
-        self.endpoint = "https://unusannusarchive.tk/api"  # This is the API that provides metadata.
-        self.cdn = "https://cdn.unusannusarchive.tk"  # This where the video files are stored.
+        # self.endpoint = "https://unusannusarchive.tk/api"
+        # self.cdn = "https://cdn.unusannusarchive.tk"
+        self.endpoint = "https://unusann.us/api"  # This is the API that provides metadata.
+        self.cdn = "https://cdn.unusann.us"  # This is where the video files are stored.
 
         self.extensions = {
             "video": "mp4",
@@ -75,6 +77,8 @@ class API():
             "nfo": "nfo"
         }
         self.video_qualities = (2160, 1440, 1080, 720, 480, 360, 240)
+
+        self.timeout = 60  # Timeout for requests
 
     def _download(self, url: str, fname: str, s: int = None, e: int = None):
         """
@@ -88,7 +92,7 @@ class API():
         :returns int: `0` if download is successful. `1` if the download is not completed. `2` if the downloaded file is larger than the expected size.
         """
 
-        resp = requests.get(url, stream=True)
+        resp = requests.get(url, stream=True, timeout=self.timeout)
         total = int(resp.headers.get('content-length', 0))
         if s is None or e is None:
             desc = f"Downloading to {fname}..."
@@ -108,10 +112,6 @@ class API():
                 size = file.write(data)
                 bar.update(size)
                 downloaded_size += size
-
-            # * These are just for debugging. (DEV0005)
-            # print("DLS   :", downloaded_size)
-            # print("total:", total)
 
             if downloaded_size < total:
                 return 1  # Success is False; Not successful
@@ -156,12 +156,12 @@ class API():
         """
 
         if dl_all:
-            r = requests.get(f"{self.endpoint}/v2/metadata/video/all")
+            r = requests.get(f"{self.endpoint}/v2/metadata/video/all", timeout=self.timeout)
 
         else:
             s = self._check(s, 's')
             e = self._check(e, 'e')
-            r = requests.get(f"{self.endpoint}/v2/metadata/video/episode/s{s}.e{e}")
+            r = requests.get(f"{self.endpoint}/v2/metadata/video/episode/s{s}.e{e}", timeout=self.timeout)
 
         return r
 
@@ -178,7 +178,7 @@ class API():
         s = self._check(s, 's')
         e = self._check(e, 'e')
 
-        return requests.get(f"{self.cdn}/thumbnails/{s}/{e}.{self.extensions['thumbnail']}").content
+        return requests.get(f"{self.cdn}/thumbnails/{s}/{e}.{self.extensions['thumbnail']}", timeout=self.timeout).content
 
     def get_video_data(self, season: int, episode: int, filepath: str, quality: int = 1080):
         """
@@ -220,7 +220,7 @@ class API():
             if language is None:
                 raise ValueError("You need to set `language` if dl_all is False.")
 
-            r = requests.get(f"{self.cdn}/subs/{s}/{e}.{language}.{self.extensions['subtitles']}")
+            r = requests.get(f"{self.cdn}/subs/{s}/{e}.{language}.{self.extensions['subtitles']}", timeout=self.timeout)
             if r.status_code == 200:
                 return {language: r.content}
 
@@ -231,11 +231,11 @@ class API():
             md = self.get_metadata(int(s), int(e))
             result = {}
             for tracks in json.loads(md.content)["tracks"]:
-                result[tracks["srclang"]] = requests.get(f"{self.cdn}/subs/{s}/{e}.{tracks['srclang']}.{self.extensions['subtitles']}").content
+                result[tracks["srclang"]] = requests.get(f"{self.cdn}/subs/{s}/{e}.{tracks['srclang']}.{self.extensions['subtitles']}", timeout=self.timeout).content
 
             return result
 
-    def gen_nfo(self, s: int, e: int, show_path=os.path.join("E:\\HomeTheater", "YouTube Series", "Unus Annus (2019)")):
+    def gen_nfo(self, s: int, e: int):
         """
         Generate NFO using self.get_metadata().
         NOTE: This method have hardcoded variables.
@@ -246,7 +246,6 @@ class API():
         :returns str: NFO output.
         """
 
-        sf = self._check(s, 's')
         meta = json.loads(self.get_metadata(s, e).content)
         title = meta.get("title", "Unus Annus")
         plot = meta.get("description", "")
