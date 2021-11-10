@@ -54,6 +54,7 @@ for season in episodes_to_download:
 import os
 import sys
 import json
+import datetime
 
 import requests
 from tqdm import tqdm
@@ -249,6 +250,12 @@ class API():
         meta = json.loads(self.get_metadata(s, e).content)
         title = meta.get("title", "Unus Annus")
         plot = meta.get("description", "")
+        date = str(meta.get("date", None))
+        if date is not None:
+            date = "\n  <aired>{0}</aired>".format(datetime.datetime.fromtimestamp(int(date[:-3])).strftime("%Y-%m-%d"))
+
+        else:
+            date = ""
 
         return f"""<?xml version="1.0" encoding="utf-8" standalone="yes"?>
 <episodedetails>
@@ -270,7 +277,7 @@ class API():
     <sortorder>1</sortorder>
   </actor>
   <episode>{e}</episode>
-  <season>{s}</season>
+  <season>{s}</season>{date}
 </episodedetails>"""
 
 
