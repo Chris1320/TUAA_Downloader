@@ -66,10 +66,8 @@ class API():
         The initialization method of API() class.
         """
 
-        # self.endpoint = "https://unusannusarchive.tk/api"
-        # self.cdn = "https://cdn.unusannusarchive.tk"
-        self.endpoint = "https://unusann.us/api"  # This is the API that provides metadata.
         self.cdn = "https://cdn.unusann.us"  # This is where the video files are stored.
+        self.endpoint = "https://api.unusann.us"  # Updated API endpoint.
 
         self.extensions = {
             "video": "mp4",
@@ -157,12 +155,12 @@ class API():
         """
 
         if dl_all:
-            r = requests.get(f"{self.endpoint}/v2/metadata/video/all", timeout=self.timeout)
+            r = requests.get(f"{self.endpoint}/v2/metadata/all", timeout=self.timeout)
 
         else:
             s = self._check(s, 's')
             e = self._check(e, 'e')
-            r = requests.get(f"{self.endpoint}/v2/metadata/video/episode/s{s}.e{e}", timeout=self.timeout)
+            r = requests.get(f"{self.endpoint}/v2/metadata/episode/s{s}.e{e}", timeout=self.timeout)
 
         return r
 

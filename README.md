@@ -1,6 +1,6 @@
 # TUAA_Downloader
 
-A python script I made for downloading videos from [the Unus Annus Archive](https://unusannusarchive.tk/).
+A python script I made for downloading videos from [the Unus Annus Archive](https://unusann.us/).
 
 ## TUAA_downloader.py
 
@@ -59,6 +59,15 @@ for season in episodes_to_download:
         Main(season, episode).main()
 ```
 
+## missing_episodes_checker.py
+
+For checking which episodes are not yet downloaded.
+
+**USAGE**:
+
+1. Edit `rootdir` variable.
+2. Run the script. (Add `-i` or `--invert` as an argument to show only the downloaded videos)
+
 ## TUAA.py (Not Recommended)
 
 This is the first script I created to move files downloaded by
@@ -71,12 +80,3 @@ TUAA's downloader application.
 3. Edit variables of `TUAA.py` and run it.
 
 **NOTE**: I do not recommend doing this because it's too hacky. Use `TUAA_downloader.py` instead.
-
-## missing_episodes_checker.py
-
-For checking which episodes are not yet downloaded.
-
-**USAGE**:
-
-1. Edit `rootdir` variable.
-2. Run the script. (Add `-i` or `--invert` as an argument to show only the downloaded videos)
