@@ -247,7 +247,7 @@ class API():
 
         meta = json.loads(self.get_metadata(s, e).content)
         title = meta.get("title", "Unus Annus")
-        plot = meta.get("description", "")
+        plot = meta.get("description", "")  ## ! add `.replace("<br>", "\n\n")` (DEV0005)
         date = str(meta.get("date", None))
         if date is not None:
             date = "\n  <aired>{0}</aired>".format(datetime.datetime.fromtimestamp(int(date[:-3])).strftime("%Y-%m-%d"))
@@ -311,7 +311,7 @@ class Main():
         )
 
         print("Writing thumbnail to file...")
-        with open(os.path.join(ef, f"thumb.{self.api.extensions['thumbnail']}"), 'wb') as f:
+        with open(os.path.join(ef, f"{filename}-thumb.{self.api.extensions['thumbnail']}"), 'wb') as f:
             f.write(poster)
 
         for lang in subs:
