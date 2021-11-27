@@ -105,6 +105,7 @@ class API():
         :param int e: Episode number
 
         :returns int: `0` if download is successful. `1` if the download is not completed. `2` if the downloaded file is larger than the expected size.
+                      If there is an unknown error, it will return the requests object's status code.
         """
 
         resp = requests.get(url, stream=True, timeout=self.timeout)
@@ -114,6 +115,9 @@ class API():
 
         else:
             desc = f"Downloading S{s}E{e}..."
+
+        if resp.status_code != 200:  # Check if response is "OK".
+            return resp.status_code
 
         if TQDM_INSTALLED:
             with open(fname, 'wb') as file, tqdm(
@@ -148,7 +152,7 @@ class API():
                     percentage = (size / total) * 100
                     downloaded_size += size
                     bar = ("=" * round(percentage / 100 * bar_size)) + (" " * (bar_size - round(percentage / 100 * bar_size)))
-                    print(f"Downloading S{s}E{e}... [{bar}] ({round(percentage, 2)}%)")
+                    print(f"{desc} [{bar}] ({round(percentage, 2)}%)")
 
             if downloaded_size < total:
                 return 1  # Success is False; Not successful
@@ -285,7 +289,7 @@ class API():
 
         meta = json.loads(self.get_metadata(s, e).content)
         title = meta.get("title", "Unus Annus")
-        plot = meta.get("description", "")  ## ! add `.replace("<br>", "\n\n")` (DEV0005)
+        plot = meta.get("description", "")  # ! add `.replace("<br>", "\n\n")` (DEV0005)
         date = str(meta.get("date", None))
         if date is not None:
             date = "\n  <aired>{0}</aired>".format(datetime.datetime.fromtimestamp(int(date[:-3])).strftime("%Y-%m-%d"))
