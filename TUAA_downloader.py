@@ -385,7 +385,7 @@ class Main():
                     print("Failed to download video and maximum retries reached.")
                     break
 
-                if dlerrcode != 0:
+                if dlerrcode != 0:  # If the download failed
                     video_dl_retries += 1
                     print(f"Video download of S{s}E{e} failed. [Error {dlerrcode}] Retrying... ({video_dl_retries}/{self.retries})")
 
@@ -397,7 +397,7 @@ class Main():
 
                     continue
 
-                else:
+                else:  # If the download is successful
                     if video_dl_retries == 1:
                         retry_grammar = "retry"
 
