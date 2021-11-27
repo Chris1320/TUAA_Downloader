@@ -56,7 +56,7 @@ import sys
 import json
 import datetime
 
-import html.parser
+from html.parser import HTMLParser
 
 try:
     import requests
@@ -76,8 +76,19 @@ else:
     TQDM_INSTALLED = True
 
 
+class HTMLFilter(HTMLParser):
+    """
+    Filters out all HTML tags.
+    """
+
+    text = ''
+
+    def handle_data(self, data):
+        self.text += data
+
+
 class API():
-    def __init__(self):
+    def __init__(self, timeout: int = 60):
         """
         The initialization method of API() class.
         """
@@ -93,9 +104,9 @@ class API():
         }
         self.video_qualities = (2160, 1440, 1080, 720, 480, 360, 240)
 
-        self.timeout = 60  # Timeout for requests
+        self.timeout = timeout  # Timeout for requests
 
-    def _download(self, url: str, fname: str, s: int = None, e: int = None):
+    def _download(self, url: str, fname: str, s: int = None, e: int = None) -> int:
         """
         Download <url> with tqdm progress bar.
 
@@ -119,7 +130,7 @@ class API():
         if resp.status_code != 200:  # Check if response is "OK".
             return resp.status_code
 
-        if TQDM_INSTALLED:
+        if TQDM_INSTALLED:  # Use tqdm module if it is installed.
             with open(fname, 'wb') as file, tqdm(
                 desc=desc,
                 total=total,
@@ -132,15 +143,6 @@ class API():
                     size = file.write(data)
                     bar.update(size)
                     downloaded_size += size
-
-            if downloaded_size < total:
-                return 1  # Success is False; Not successful
-
-            elif downloaded_size > total:
-                return 2  # This is suspicious if this happens.
-
-            elif downloaded_size == total:
-                return 0  # Success is True; Successful
 
         else:  # Fallback to the old method if tqdm is not installed.
             with open(fname, 'wb') as file:
@@ -157,16 +159,16 @@ class API():
 
                 print('\r')
 
-            if downloaded_size < total:
-                return 1  # Success is False; Not successful
+        if downloaded_size < total:
+            return 1  # Success is False; Not successful
 
-            elif downloaded_size > total:
-                return 2  # This is suspicious if this happens.
+        elif downloaded_size > total:
+            return 2  # This is suspicious if this happens.
 
-            elif downloaded_size == total:
-                return 0  # Success is True; Successful
+        elif downloaded_size == total:
+            return 0  # Success is True; Successful
 
-    def _check(self, value: str, vtype: str):
+    def _check(self, value: str, vtype: str) -> str:
         """
         Check if the value is right, depending on type.
 
@@ -180,13 +182,11 @@ class API():
             if len(str(value)) < 2:
                 value = f"0{value}"
 
-            return value
-
         elif vtype == 'e':
             while len(str(value)) < 3:
                 value = "0" + str(value)
 
-            return value
+        return value
 
     def get_metadata(self, s: int = None, e: int = None, dl_all: bool = False):
         """
@@ -279,7 +279,7 @@ class API():
 
             return result
 
-    def gen_nfo(self, s: int, e: int):
+    def gen_nfo(self, s: int, e: int) -> str:
         """
         Generate NFO using self.get_metadata().
         NOTE: This method have hardcoded variables.
@@ -292,7 +292,13 @@ class API():
 
         meta = json.loads(self.get_metadata(s, e).content)
         title = meta.get("title", "Unus Annus")
-        plot = meta.get("description", "")  # ! add `.replace("<br>", "\n\n")` (DEV0005)
+
+        # Process the plot.
+        plot = meta.get("description", "")
+        plot_parser = HTMLFilter()
+        plot_parser.feed(plot.replace("<br>", '\n'))
+        plot = plot_parser.text
+
         date = str(meta.get("date", None))
         if date is not None:
             date = "\n  <aired>{0}</aired>".format(datetime.datetime.fromtimestamp(int(date[:-3])).strftime("%Y-%m-%d"))
@@ -332,7 +338,7 @@ class Main():
         self.api = API()
         self.retries = 3  # Maximum retries
 
-    def main(self):
+    def main(self) -> int:
         s = self.api._check(self.s, 's')
         e = self.api._check(self.e, 'e')
         filename = f"Unus Annus S{self.s}E{self.e}"
