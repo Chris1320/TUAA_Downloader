@@ -69,7 +69,7 @@ try:
     from tqdm import tqdm
 
 except ImportError:  # tqdm module is optional.
-    print("[i] tqdm module in not installed, running without progress bar.")
+    print("[i] tqdm module in not installed, falling back to old progress bar.")
     TQDM_INSTALLED = False
 
 else:
@@ -149,10 +149,13 @@ class API():
                 percentage = 0  # Percent downloaded
                 for data in resp.iter_content(chunk_size=1024):
                     size = file.write(data)
-                    percentage = (size / total) * 100
                     downloaded_size += size
+                    percentage = (downloaded_size / total) * 100
                     bar = ("=" * round(percentage / 100 * bar_size)) + (" " * (bar_size - round(percentage / 100 * bar_size)))
-                    print(f"{desc} [{bar}] ({round(percentage, 2)}%)")
+                    sys.stdout.write(f"\r{desc} [{bar}] ({round(percentage, 2)}%)")
+                    sys.stdout.flush()
+
+                print('\r')
 
             if downloaded_size < total:
                 return 1  # Success is False; Not successful
@@ -371,19 +374,38 @@ class Main():
         else:
             print("Downloading video... (Might take a long time)")
             video_dl_retries = 0
-            while self.api.get_video_data(
-                season=self.s,
-                episode=self.e,
-                filepath=os.path.join(ef, f"{filename}.{self.api.extensions['video']}"),
-                quality=self.quality
-            ) != 0:
-                if video_dl_retries == self.retries:
+            while True:
+                dlerrcode = self.api.get_video_data(  # Try downloading the file.
+                    season=self.s,
+                    episode=self.e,
+                    filepath=os.path.join(ef, f"{filename}.{self.api.extensions['video']}"),
+                    quality=self.quality
+                )
+                if (dlerrcode != 0) and (video_dl_retries == self.retries):  # If the maximum retries is reached, break.
                     print("Failed to download video and maximum retries reached.")
                     break
 
-                os.remove(os.path.join(ef, f"{filename}.{self.api.extensions['video']}"))
-                video_dl_retries += 1
-                print(f"Video download of S{s}E{e} failed. Retrying... ({video_dl_retries}/{self.retries})")
+                if dlerrcode != 0:
+                    video_dl_retries += 1
+                    print(f"Video download of S{s}E{e} failed. [Error {dlerrcode}] Retrying... ({video_dl_retries}/{self.retries})")
+
+                    try:  # Remove the incomplete file.
+                        os.remove(os.path.join(ef, f"{filename}.{self.api.extensions['video']}"))
+
+                    except FileNotFoundError:
+                        pass
+
+                    continue
+
+                else:
+                    if video_dl_retries == 1:
+                        retry_grammar = "retry"
+
+                    else:
+                        retry_grammar = "retries"
+
+                    print(f"Download successful with {video_dl_retries} {retry_grammar}.")
+                    break
 
         print("Done!")
         return 0
