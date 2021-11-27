@@ -56,12 +56,39 @@ import sys
 import json
 import datetime
 
-import requests
-from tqdm import tqdm
+from html.parser import HTMLParser
+
+try:
+    import requests
+
+except ImportError:  # requests module is required.
+    print("[E] You need to install the `requests` library.")
+    sys.exit(1)
+
+try:
+    from tqdm import tqdm
+
+except ImportError:  # tqdm module is optional.
+    print("[i] tqdm module in not installed, falling back to old progress bar.")
+    TQDM_INSTALLED = False
+
+else:
+    TQDM_INSTALLED = True
+
+
+class HTMLFilter(HTMLParser):
+    """
+    Filters out all HTML tags.
+    """
+
+    text = ''
+
+    def handle_data(self, data):
+        self.text += data
 
 
 class API():
-    def __init__(self):
+    def __init__(self, timeout: int = 60):
         """
         The initialization method of API() class.
         """
@@ -77,9 +104,9 @@ class API():
         }
         self.video_qualities = (2160, 1440, 1080, 720, 480, 360, 240)
 
-        self.timeout = 60  # Timeout for requests
+        self.timeout = timeout  # Timeout for requests
 
-    def _download(self, url: str, fname: str, s: int = None, e: int = None):
+    def _download(self, url: str, fname: str, s: int = None, e: int = None) -> int:
         """
         Download <url> with tqdm progress bar.
 
@@ -89,6 +116,7 @@ class API():
         :param int e: Episode number
 
         :returns int: `0` if download is successful. `1` if the download is not completed. `2` if the downloaded file is larger than the expected size.
+                      If there is an unknown error, it will return the requests object's status code.
         """
 
         resp = requests.get(url, stream=True, timeout=self.timeout)
@@ -99,29 +127,48 @@ class API():
         else:
             desc = f"Downloading S{s}E{e}..."
 
-        with open(fname, 'wb') as file, tqdm(
-            desc=desc,
-            total=total,
-            unit='iB',
-            unit_scale=True,
-            unit_divisor=1024
-        ) as bar:
-            downloaded_size = 0
-            for data in resp.iter_content(chunk_size=1024):
-                size = file.write(data)
-                bar.update(size)
-                downloaded_size += size
+        if resp.status_code != 200:  # Check if response is "OK".
+            return resp.status_code
 
-            if downloaded_size < total:
-                return 1  # Success is False; Not successful
+        if TQDM_INSTALLED:  # Use tqdm module if it is installed.
+            with open(fname, 'wb') as file, tqdm(
+                desc=desc,
+                total=total,
+                unit='iB',
+                unit_scale=True,
+                unit_divisor=1024
+            ) as bar:
+                downloaded_size = 0
+                for data in resp.iter_content(chunk_size=1024):
+                    size = file.write(data)
+                    bar.update(size)
+                    downloaded_size += size
 
-            elif downloaded_size > total:
-                return 2  # This is suspicious if this happens.
+        else:  # Fallback to the old method if tqdm is not installed.
+            with open(fname, 'wb') as file:
+                downloaded_size = 0
+                bar_size = 40  # 40 characters
+                percentage = 0  # Percent downloaded
+                for data in resp.iter_content(chunk_size=1024):
+                    size = file.write(data)
+                    downloaded_size += size
+                    percentage = (downloaded_size / total) * 100
+                    bar = ("=" * round(percentage / 100 * bar_size)) + (" " * (bar_size - round(percentage / 100 * bar_size)))
+                    sys.stdout.write(f"\r{desc} [{bar}] ({round(percentage, 2)}%)")
+                    sys.stdout.flush()
 
-            elif downloaded_size == total:
-                return 0  # Success is True; Successful
+                print('\r')
 
-    def _check(self, value: str, vtype: str):
+        if downloaded_size < total:
+            return 1  # Success is False; Not successful
+
+        elif downloaded_size > total:
+            return 2  # This is suspicious if this happens.
+
+        elif downloaded_size == total:
+            return 0  # Success is True; Successful
+
+    def _check(self, value: str, vtype: str) -> str:
         """
         Check if the value is right, depending on type.
 
@@ -135,13 +182,11 @@ class API():
             if len(str(value)) < 2:
                 value = f"0{value}"
 
-            return value
-
         elif vtype == 'e':
             while len(str(value)) < 3:
                 value = "0" + str(value)
 
-            return value
+        return value
 
     def get_metadata(self, s: int = None, e: int = None, dl_all: bool = False):
         """
@@ -234,7 +279,7 @@ class API():
 
             return result
 
-    def gen_nfo(self, s: int, e: int):
+    def gen_nfo(self, s: int, e: int) -> str:
         """
         Generate NFO using self.get_metadata().
         NOTE: This method have hardcoded variables.
@@ -247,7 +292,13 @@ class API():
 
         meta = json.loads(self.get_metadata(s, e).content)
         title = meta.get("title", "Unus Annus")
-        plot = meta.get("description", "")  ## ! add `.replace("<br>", "\n\n")` (DEV0005)
+
+        # Process the plot.
+        plot = meta.get("description", "")
+        plot_parser = HTMLFilter()
+        plot_parser.feed(plot.replace("<br>", '\n'))
+        plot = plot_parser.text
+
         date = str(meta.get("date", None))
         if date is not None:
             date = "\n  <aired>{0}</aired>".format(datetime.datetime.fromtimestamp(int(date[:-3])).strftime("%Y-%m-%d"))
@@ -287,7 +338,7 @@ class Main():
         self.api = API()
         self.retries = 3  # Maximum retries
 
-    def main(self):
+    def main(self) -> int:
         s = self.api._check(self.s, 's')
         e = self.api._check(self.e, 'e')
         filename = f"Unus Annus S{self.s}E{self.e}"
@@ -329,19 +380,38 @@ class Main():
         else:
             print("Downloading video... (Might take a long time)")
             video_dl_retries = 0
-            while self.api.get_video_data(
-                season=self.s,
-                episode=self.e,
-                filepath=os.path.join(ef, f"{filename}.{self.api.extensions['video']}"),
-                quality=self.quality
-            ) != 0:
-                if video_dl_retries == self.retries:
+            while True:
+                dlerrcode = self.api.get_video_data(  # Try downloading the file.
+                    season=self.s,
+                    episode=self.e,
+                    filepath=os.path.join(ef, f"{filename}.{self.api.extensions['video']}"),
+                    quality=self.quality
+                )
+                if (dlerrcode != 0) and (video_dl_retries == self.retries):  # If the maximum retries is reached, break.
                     print("Failed to download video and maximum retries reached.")
                     break
 
-                os.remove(os.path.join(ef, f"{filename}.{self.api.extensions['video']}"))
-                video_dl_retries += 1
-                print(f"Video download of S{s}E{e} failed. Retrying... ({video_dl_retries}/{self.retries})")
+                if dlerrcode != 0:  # If the download failed
+                    video_dl_retries += 1
+                    print(f"Video download of S{s}E{e} failed. [Error {dlerrcode}] Retrying... ({video_dl_retries}/{self.retries})")
+
+                    try:  # Remove the incomplete file.
+                        os.remove(os.path.join(ef, f"{filename}.{self.api.extensions['video']}"))
+
+                    except FileNotFoundError:
+                        pass
+
+                    continue
+
+                else:  # If the download is successful
+                    if video_dl_retries == 1:
+                        retry_grammar = "retry"
+
+                    else:
+                        retry_grammar = "retries"
+
+                    print(f"Download successful with {video_dl_retries} {retry_grammar}.")
+                    break
 
         print("Done!")
         return 0
