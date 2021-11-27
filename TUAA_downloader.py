@@ -56,8 +56,24 @@ import sys
 import json
 import datetime
 
-import requests
-from tqdm import tqdm
+import html.parser
+
+try:
+    import requests
+
+except ImportError:  # requests module is required.
+    print("[E] You need to install the `requests` library.")
+    sys.exit(1)
+
+try:
+    from tqdm import tqdm
+
+except ImportError:  # tqdm module is optional.
+    print("[i] tqdm module in not installed, running without progress bar.")
+    TQDM_INSTALLED = False
+
+else:
+    TQDM_INSTALLED = True
 
 
 class API():
@@ -99,18 +115,40 @@ class API():
         else:
             desc = f"Downloading S{s}E{e}..."
 
-        with open(fname, 'wb') as file, tqdm(
-            desc=desc,
-            total=total,
-            unit='iB',
-            unit_scale=True,
-            unit_divisor=1024
-        ) as bar:
-            downloaded_size = 0
-            for data in resp.iter_content(chunk_size=1024):
-                size = file.write(data)
-                bar.update(size)
-                downloaded_size += size
+        if TQDM_INSTALLED:
+            with open(fname, 'wb') as file, tqdm(
+                desc=desc,
+                total=total,
+                unit='iB',
+                unit_scale=True,
+                unit_divisor=1024
+            ) as bar:
+                downloaded_size = 0
+                for data in resp.iter_content(chunk_size=1024):
+                    size = file.write(data)
+                    bar.update(size)
+                    downloaded_size += size
+
+            if downloaded_size < total:
+                return 1  # Success is False; Not successful
+
+            elif downloaded_size > total:
+                return 2  # This is suspicious if this happens.
+
+            elif downloaded_size == total:
+                return 0  # Success is True; Successful
+
+        else:  # Fallback to the old method if tqdm is not installed.
+            with open(fname, 'wb') as file:
+                downloaded_size = 0
+                bar_size = 40  # 40 characters
+                percentage = 0  # Percent downloaded
+                for data in resp.iter_content(chunk_size=1024):
+                    size = file.write(data)
+                    percentage = (size / total) * 100
+                    downloaded_size += size
+                    bar = ("=" * round(percentage / 100 * bar_size)) + (" " * (bar_size - round(percentage / 100 * bar_size)))
+                    print(f"Downloading S{s}E{e}... [{bar}] ({round(percentage, 2)}%)")
 
             if downloaded_size < total:
                 return 1  # Success is False; Not successful
