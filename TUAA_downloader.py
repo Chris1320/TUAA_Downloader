@@ -345,6 +345,10 @@ class Main():
         sf = f"Season {s}"  # Season folder
         ef = os.path.join(f"{sf}", f"Unus Annus S{self.s}E{self.e}")  # Episode folder
 
+        if "error" in json.loads(self.api.get_metadata(s, e).content):
+            print("Episode not found!")
+            return 1
+
         print("Creating folder...")
         os.makedirs(ef, exist_ok=True)
 
