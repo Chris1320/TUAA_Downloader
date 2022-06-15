@@ -5,64 +5,77 @@ For checking which episodes are not yet downloaded.
 
 **USAGE**:
 
-1. Edit `rootdir` variable.
-2. Run the script. (Add `-i` or `--invert` as an argument to show only the downloaded videos)
+1. Run the script. (Add `-i` or `--invert` as an argument to show only the downloaded videos)
 """
 
 import os
 import sys
 
-# Change this to the root directory where your season folders are stored.
-# Use forward slashes (/) or the program might break because I'm too lazy
-# to do security checks. Also add a trailing slash.
-rootdir = "E:/HomeTheater/YouTube Series/Unus Annus (2019)/"
+rootdir = os.getcwd()  # Assume that the files are in the current working directory.
 
-try:
-    if sys.argv[1] in ("-i", "--invert"):
-        invert = True
-
-    else:
-        invert = False
+try:  # Check if `--invert` exists in `sys.argv`.
+    invert = True if sys.argv[1] in ("-i", "--invert") else False
 
 except IndexError:
     invert = False
 
+ep_folder_name = "Unus Annus S{s}E{e}"
+
 episodes = {
-    0: os.listdir(f"{rootdir}Season 00"),
-    1: os.listdir(f"{rootdir}Season 01")
+    0: 12,
+    1: 368
 }
 
-missing = []
+files = []
 
-# Check Season 00
 
-i = 1
-while i != 12:
-    filepath = f"{rootdir}Season 00/Unus Annus S0E{i}"
-    if invert:
-        if os.path.exists(filepath):
-            missing.append(filepath)
+def _episodeCheck(value: int):
+    """
+    Convert int<value> to str<value> and make its length == 3.
 
-    else:
-        if not os.path.exists(filepath):
-            missing.append(filepath)
+    :param int value: (episode) value.
 
-    i += 1
+    :returns str: The formatted value.
+    """
 
-# Check Season 01
+    while len(str(value)) < 3:
+        value = "0" + str(value)
 
-i = 1
-while i != 368:
-    filepath = f"{rootdir}Season 01/Unus Annus S1E{i}"
-    if invert:
-        if os.path.exists(filepath):
-            missing.append(filepath)
+    return value
 
-    else:
-        if not os.path.exists(filepath):
-            missing.append(filepath)
 
-    i += 1
+def _buildFilepath(season: int, episode: int):
+    """
+    Build the expected filepath for the episode.
+
+    :param int season: Season number.
+    :param int episode: Episode number.
+
+    :returns str: The filepath.
+    """
+
+    return os.path.join(  # Build filepath
+        rootdir,
+        f"Season 0{season}",  # NOTE: Season number length is hardcoded. (There's only two seasons anyway.)
+        f"{ep_folder_name.format(s=season, e=episode)}"
+    )
+
+
+if invert:  # Invert result if `--invert` is activated.
+    for season in episodes:
+        for episode in range(1, episodes[season] + 1):
+            episode_folder = _buildFilepath(season, episode)
+            if os.path.isdir(episode_folder):
+                # Add to `files` if the folder exists.
+                files.append((season, episode, episode_folder))
+
+else:  # Do this if `--invert` is not activated.
+    for season in episodes:
+        for episode in range(1, episodes[season] + 1):
+            episode_folder = _buildFilepath(season, episode)
+            if not os.path.isdir(episode_folder):
+                # Add to `files` if the folder does not exist.
+                files.append((season, episode, episode_folder))
 
 if invert:
     print("Available episodes:")
@@ -71,8 +84,8 @@ else:
     print("Missing episodes:")
 
 print()
-for filepath in missing:
-
-    print(f"    + {filepath}")
+print("Season | Episode | Filepath")
+for f in files:
+    print(f"0{f[0]}     | {_episodeCheck(f[1])}     | {f[2]}")
 
 print()
