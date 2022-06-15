@@ -22,8 +22,8 @@ except IndexError:
 ep_folder_name = "Unus Annus S{s}E{e}"
 
 episodes = {
-    0: 12,
-    1: 368
+    0: 14,  # Season 0 (Specials) have 14 episodes.
+    1: 368  # Season 1 have 368 episodes.
 }
 
 files = []
