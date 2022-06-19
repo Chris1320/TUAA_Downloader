@@ -446,8 +446,7 @@ if __name__ == "__main__":
         print(f"    {sys.argv[0]} 1 2-5      # Downloads Season 1 Episodes 2, 3, 4, and 5.")
         print()
         print("AVAILABLE QUALITIES:")
-        available_qualities = ""
-        print('p, '.join(map(lambda x: available_qualities + str(x), API()._video_qualities)) + 'p')
+        print('p, '.join(map(str, API()._video_qualities)) + 'p')
         sys.exit(1)
 
     try:
