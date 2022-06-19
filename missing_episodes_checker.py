@@ -26,66 +26,72 @@ episodes = {
     1: 368  # Season 1 have 368 episodes.
 }
 
-files = []
 
-
-def _episodeCheck(value: int):
+def _episodeCheck(value: int) -> str:
     """
     Convert int<value> to str<value> and make its length == 3.
 
-    :param int value: (episode) value.
+    :param value: (episode) value.
 
-    :returns str: The formatted value.
+    :returns: The formatted value.
     """
 
     while len(str(value)) < 3:
-        value = "0" + str(value)
+        value = "0" + str(value)  # type: ignore
 
-    return value
+    return str(value)
 
 
-def _buildFilepath(season: int, episode: int):
+def _buildFilepath(season: int, episode: int) -> str:
     """
     Build the expected filepath for the episode.
 
-    :param int season: Season number.
-    :param int episode: Episode number.
+    :param season: Season number.
+    :param episode: Episode number.
 
-    :returns str: The filepath.
+    :returns: The filepath.
     """
 
     return os.path.join(  # Build filepath
         rootdir,
         f"Season 0{season}",  # NOTE: Season number length is hardcoded. (There's only two seasons anyway.)
-        f"{ep_folder_name.format(s=season, e=episode)}"
+        str(ep_folder_name.format(s=season, e=episode))
     )
 
 
-if invert:  # Invert result if `--invert` is activated.
-    for season in episodes:
-        for episode in range(1, episodes[season] + 1):
-            episode_folder = _buildFilepath(season, episode)
-            if os.path.isdir(episode_folder):
-                # Add to `files` if the folder exists.
-                files.append((season, episode, episode_folder))
+def main() -> int:
+    files = []
+    if invert:  # Invert result if `--invert` is activated.
+        for season in episodes:
+            for episode in range(1, episodes[season] + 1):
+                episode_folder = _buildFilepath(season, episode)
+                if os.path.isdir(episode_folder):
+                    # Add to `files` if the folder exists.
+                    files.append((season, episode, episode_folder))
 
-else:  # Do this if `--invert` is not activated.
-    for season in episodes:
-        for episode in range(1, episodes[season] + 1):
-            episode_folder = _buildFilepath(season, episode)
-            if not os.path.isdir(episode_folder):
-                # Add to `files` if the folder does not exist.
-                files.append((season, episode, episode_folder))
+    else:  # Do this if `--invert` is not activated.
+        for season in episodes:
+            for episode in range(1, episodes[season] + 1):
+                episode_folder = _buildFilepath(season, episode)
+                if not os.path.isdir(episode_folder):
+                    # Add to `files` if the folder does not exist.
+                    files.append((season, episode, episode_folder))
 
-if invert:
-    print("Available episodes:")
+    if invert:
+        print("Available episodes:")
 
-else:
-    print("Missing episodes:")
+    else:
+        print("Missing episodes:")
 
-print()
-print("Season | Episode | Filepath")
-for f in files:
-    print(f"0{f[0]}     | {_episodeCheck(f[1])}     | {f[2]}")
+    print()
+    print("Season | Episode | Filepath")
+    for f in files:
+        print(f"0{f[0]}     | {_episodeCheck(f[1])}     | {f[2]}")
 
-print()
+    print()
+
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
