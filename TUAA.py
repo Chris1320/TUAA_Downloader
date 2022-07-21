@@ -10,8 +10,8 @@ my own version of the downloader in Python 3.
 
 Usage: `$ python tuaa.py <season> <episode|episode range> <quality>`
 
-- `<season>`: Season number.
-- `<episode|episode range>`: Episode number or a range of episode numbers.
+- `<season>`: Season number. (e.g., `0` or `1`)
+- `<episode|episode range>`: Episode number or a range of episode numbers. (e.g., `26` or `50-60`)
 - `<quality>`: [Optional argument] Set the quality to download (`2160`, `1440`, `1080`, `720`, `480`, `360`, or `240`) [Default: `1080`]
 
 This python script can be imported to another script so you can use the API.
