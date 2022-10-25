@@ -2,7 +2,7 @@
 
 A python script I made for downloading videos from [the Unus Annus Archive](https://unusann.us/). This script is tested on *Windows 10/11*, Termux (Android), and *Kali Linux*.
 
-Usage: `$ python tuaa.py <season> <episode|episode range> <quality>`
+Usage: `$ python TUAA.py <season> <episode|episode range> <quality>`
 
 - `<season>`: Season number.
 - `<episode|episode range>`: Episode number or a range of episode numbers.
@@ -15,7 +15,7 @@ This python script can be imported to another script so you can use the API.
 ```python
 
 import json
-from tuaa import API
+from TUAA import API
 
 tuaa_api = API()
 
@@ -39,7 +39,7 @@ import the Main class instead.
 
 ```python
 
-from tuaa import Main
+from TUAA import Main
 
 episodes_to_download = {
     0: (2, 4, 6, 8),  # Download episodes 2, 4, 6, and 8 of season 0. (Specials)
