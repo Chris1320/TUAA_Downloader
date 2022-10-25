@@ -62,11 +62,11 @@ class API:
         self.timeout: int = timeout  # Timeout for httpx
 
     @property
-    def _extensions(self) -> dict[str, str]:
+    def _extensions(self) -> dict[str, Any]:
         return {
             "video": "mp4",
             "subtitles": "vtt",
-            "thumbnail": "jpg",
+            "thumbnail": ["jpg", "webp"],
             "nfo": "nfo"
         }
 
@@ -166,25 +166,33 @@ class API:
 
         return httpx.get(target, timeout=self.timeout)
 
-    def getThumbnail(self, s: int, e: int) -> bytes:
+    def getThumbnail(self, s: int, e: int) -> tuple[str, bytes]:
         """
         Get thumbnail of season <s> episode <e>.
 
         :param s: Season number.
         :param e: Episode number.
 
-        :returns: thumbnail data in jpg format.
+        :returns: A tuple containing the thumbnail extension and data.
         """
 
-        return httpx.get(
-            "{0}/thumbnails/{1}/{2}.{3}".format(
-                self._cdn,
-                self._check(s, 's'),
-                self._check(e, 'e'),
-                self._extensions['thumbnail']
-            ),
-            timeout = self.timeout
-        ).content
+        for thumbnail_ext in self._extensions["thumbnail"]:
+            result = httpx.get(
+                "{0}/thumbnails/{1}/{2}.{3}".format(
+                    self._cdn,
+                    self._check(s, 's'),
+                    self._check(e, 'e'),
+                    thumbnail_ext
+                ),
+                timeout = self.timeout
+            )
+
+            if result.status_code == 200:
+                return (thumbnail_ext, result.content)
+
+            continue
+
+        raise ValueError("Unable to download thumbnail.")
 
     def getVideoData(self, season: int, episode: int, filepath: str, quality: int = 1080) -> int:
         """
@@ -320,10 +328,12 @@ class API:
 
 
 class Main():
-    def __init__(self, season: int, episode: int, quality: int = 1080):
+    def __init__(self, season: int, episode: int, quality: int = 1080, metadata_only: bool = False):
         self.s = season
         self.e = episode
         self.quality = quality
+        self.metadata_only = metadata_only
+
         self._api = API()
         self.retries = 3  # Maximum retries
 
@@ -355,8 +365,8 @@ class Main():
         )
 
         print("Writing thumbnail to file...")
-        with open(os.path.join(ef, f"{filename}-thumb.{self._api._extensions['thumbnail']}"), 'wb') as f:
-            f.write(poster)
+        with open(os.path.join(ef, f"{filename}-thumb.{poster[0]}"), 'wb') as f:
+            f.write(poster[1])
 
         for lang in subs:
             print(f"Writing `{lang}` subtitles to file...")
@@ -411,7 +421,7 @@ class Main():
 
 
 if __name__ == "__main__":
-    def __dl(s, e, q):
+    def __dl(s, e, q, m):
         """
         A private function to be used below.
         """
@@ -420,7 +430,8 @@ if __name__ == "__main__":
         return Main(
             season=s,
             episode=e,
-            quality=q
+            quality=q,
+            metadata_only=m
         ).main()
 
     try:
@@ -458,8 +469,13 @@ if __name__ == "__main__":
     except IndexError:
         q = 1080  # Default quality
 
+    except ValueError:
+        q = 1080  # It is an optional parameter so this might be `--metadata-only` instead of a quality profile.
+
+    metadata_only = True if "--metadata-only" in sys.argv else False
+
     if type(e) is int:
-        sys.exit(__dl(s, e, q))
+        sys.exit(__dl(s, e, q, metadata_only))
 
     else:
         ec = 0  # Error code
@@ -473,7 +489,7 @@ if __name__ == "__main__":
 
         for current_episode in e_range:
             print()
-            ec += __dl(s, current_episode, q)
+            ec += __dl(s, current_episode, q, metadata_only)
             pass
 
         sys.exit(ec)
