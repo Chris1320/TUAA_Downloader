@@ -2,8 +2,6 @@
 
 A python script I made for downloading videos from [the Unus Annus Archive](https://unusann.us/). This script is tested on *Windows 10/11*, Termux (Android), and *Kali Linux*.
 
-Their [Downloader application](https://github.com/TheUnusAnnusArchive/TUAA-Downloader/) doesn't work most of the times (at least for me) and I'm too lazy to try to fix it so I decided to do my own version of the downloader in Python 3.
-
 Usage: `$ python tuaa.py <season> <episode|episode range> <quality>`
 
 - `<season>`: Season number.
