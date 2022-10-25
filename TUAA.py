@@ -4,10 +4,6 @@ The Unus Annus Archive Downloader (TUAA Downloader)
 A python script I made for downloading videos from the Unus Annus Archive (https://unusann.us/).
 This script is tested on *Windows 10/11*, Termux (Android), and *Kali Linux*.
 
-Their Downloader application (https://github.com/TheUnusAnnusArchive/TUAA-Downloader/) doesn't
-work most of the times (at least for me) and I'm too lazy to try to fix it so I decided to do
-my own version of the downloader in Python 3.
-
 Usage: `$ python tuaa.py <season> <episode|episode range> <quality>`
 
 - `<season>`: Season number. (e.g., `0` or `1`)
@@ -26,21 +22,19 @@ from typing import Any
 from html.parser import HTMLParser
 
 try:
-    import requests
+    import httpx
 
-except ImportError:  # requests module is required.
-    print("[E] You need to install the `requests` library.")
+except ImportError:  # httpx module is required.
+    print("[E] You need to install the `httpx` library.")
     sys.exit(1)
 
 try:
     from tqdm import tqdm
+    TQDM_INSTALLED = True
 
 except ImportError:  # tqdm module is optional.
     print("[i] tqdm module in not installed, falling back to old progress bar.")
     TQDM_INSTALLED = False
-
-else:
-    TQDM_INSTALLED = True
 
 
 class HTMLFilter(HTMLParser):
@@ -48,7 +42,7 @@ class HTMLFilter(HTMLParser):
     Filters out all HTML tags.
     """
 
-    text: str = ''
+    text: str = ""
 
     def handle_data(self, data: str):
         self.text += data
@@ -59,13 +53,13 @@ class API:
         """
         The initialization method of API() class.
 
-        :param timeout: The timeout of the requests module in seconds.
+        :param timeout: The timeout of the httpx module in seconds.
         """
 
-        self._cdn = "https://cdn.unusann.us"  # This is where the video files are stored.
-        self._endpoint = "https://api.unusann.us"  # Updated API endpoint.
+        self._cdn = "https://usc1.contabostorage.com/a7f68355d8c442d8a7a1076a0ac5d924:videos"  # This is where the video files are stored.
+        self._endpoint = "https://unusann.us/_next/data/hqwEj90Ew_dssBEL-q5jv"  # Updated API endpoint.
 
-        self.timeout: int = timeout  # Timeout for requests
+        self.timeout: int = timeout  # Timeout for httpx
 
     @property
     def _extensions(self) -> dict[str, str]:
@@ -84,67 +78,56 @@ class API:
         """
         Download <url> with tqdm progress bar.
 
-        :param url: The URL of the file to be downloaded.
-        :param fname: The filename of the output; Where to write the data to
-        :param s: Season number
-        :param e: Episode number
+        :param url:   The URL of the file to be downloaded.
+        :param fname: The filename of the output; Where to write the data to.
+        :param s:     Season number.
+        :param e:     Episode number.
 
         :returns: `0` if download is successful.
                   `1` if the download is not completed.
                   `2` if the downloaded file is larger than the expected size.
-                  If there is an unknown error, it will return the requests object's status code.
+                  If there is an unknown httpx error, it will return the httpx object's status code.
         """
 
-        resp = requests.get(url, stream=True, timeout=self.timeout)
-        total = int(resp.headers.get('content-length', 0))
-        if s is None or e is None:
-            desc = f"Downloading to {fname}..."
+        with httpx.stream("GET", url, timeout=self.timeout) as resp:
+            total = int(resp.headers.get('content-length', 0))
+            desc = f"Downloading to {fname}..." if (s is None or e is None) else f"Downloading S{s}E{e}..."
 
-        else:
-            desc = f"Downloading S{s}E{e}..."
+            if resp.status_code != 200:  # Check if response is "OK".
+                return resp.status_code
 
-        if resp.status_code != 200:  # Check if response is "OK".
-            return resp.status_code
+            if TQDM_INSTALLED:  # Use tqdm module if it is installed.
+                with open(fname, 'wb') as file, tqdm(
+                    desc = desc,
+                    total = total,
+                    unit = 'iB',
+                    unit_scale = True,
+                    unit_divisor = 1024
+                ) as bar:
+                    downloaded_size = 0
+                    for data in resp.iter_bytes(chunk_size=1024):
+                        size = file.write(data)
+                        bar.update(size)
+                        downloaded_size += size
 
-        if TQDM_INSTALLED:  # Use tqdm module if it is installed.
-            with open(fname, 'wb') as file, tqdm(
-                desc=desc,
-                total=total,
-                unit='iB',
-                unit_scale=True,
-                unit_divisor=1024
-            ) as bar:
-                downloaded_size = 0
-                for data in resp.iter_content(chunk_size=1024):
-                    size = file.write(data)
-                    bar.update(size)
-                    downloaded_size += size
+            else:  # Fallback to the old method if tqdm is not installed.
+                with open(fname, 'wb') as file:
+                    downloaded_size = 0
+                    bar_size = 40  # the bar will take up 40 characters of space
+                    percentage = 0  # Percent downloaded
+                    for data in resp.iter_bytes(chunk_size=1024):
+                        size = file.write(data)
+                        downloaded_size += size
+                        percentage = (downloaded_size / total) * 100
+                        bar = f"{'=' * round(percentage / 100 * bar_size)}{' ' * (bar_size - round(percentage / 100 * bar_size))}"
+                        sys.stdout.write(f"\r{desc} [{bar}] ({round(percentage, 2)}%)")
+                        sys.stdout.flush()
 
-        else:  # Fallback to the old method if tqdm is not installed.
-            with open(fname, 'wb') as file:
-                downloaded_size = 0
-                bar_size = 40  # 40 characters
-                percentage = 0  # Percent downloaded
-                for data in resp.iter_content(chunk_size=1024):
-                    size = file.write(data)
-                    downloaded_size += size
-                    percentage = (downloaded_size / total) * 100
-                    bar = ("=" * round(percentage / 100 * bar_size)) + (" " * (bar_size - round(percentage / 100 * bar_size)))
-                    sys.stdout.write(f"\r{desc} [{bar}] ({round(percentage, 2)}%)")
-                    sys.stdout.flush()
+                    print('\r')
 
-                print('\r')
+            return 0 if downloaded_size == total else 1
 
-        if downloaded_size < total:
-            return 1  # Success is False; Not successful
-
-        elif downloaded_size > total:
-            return 2  # This is suspicious if this happens.
-
-        else:
-            return 0  # Successful; downloaded_size == total
-
-    def _check(self, value: int, vtype: str) -> str:
+    def _check(self, value: int | None, vtype: str | None) -> str:
         """
         Check if the value is right, depending on type.
 
@@ -164,27 +147,24 @@ class API:
 
         return str(value)
 
-    def getMetadata(self, s: int | None = None, e: int | None = None, dl_all: bool = False) -> requests.Response:
+    def getMetadata(self, s: int | None = None, e: int | None = None, dl_all: bool = False) -> httpx.Response:
         """
         Get episode <e> of season <s> metadata from <self.endpoint>.
 
-        :param s: Season number (Not needed if dl_all is True)
-        :param e: Episode number (Not needed if dl_all is True)
+        :param s:      Season number (Not needed if `dl_all` is True)
+        :param e:      Episode number (Not needed if `dl_all` is True)
         :param dl_all: Download all season and episode metadata
 
-        :returns: requests response object.
+        :returns: httpx response object.
         """
 
-        if dl_all:
-            r = requests.get(f"{self._endpoint}/v2/metadata/all", timeout=self.timeout)
+        target = f"{self._endpoint}/en.json" if dl_all else "{0}/en/watch/s{1}.e{2}.json".format(
+            self._endpoint,
+            self._check(s, 's'),
+            self._check(e, 'e')
+        )
 
-        else:
-            r = requests.get(
-                f"{self._endpoint}/v2/metadata/episode/s{self._check(s, 's')}.e{self._check(e, 'e')}",  # type: ignore
-                timeout=self.timeout
-            )
-
-        return r
+        return httpx.get(target, timeout=self.timeout)
 
     def getThumbnail(self, s: int, e: int) -> bytes:
         """
@@ -196,19 +176,24 @@ class API:
         :returns: thumbnail data in jpg format.
         """
 
-        return requests.get(
-            f"{self._cdn}/thumbnails/{self._check(s, 's')}/{self._check(e, 'e')}.{self._extensions['thumbnail']}",
-            timeout=self.timeout
+        return httpx.get(
+            "{0}/thumbnails/{1}/{2}.{3}".format(
+                self._cdn,
+                self._check(s, 's'),
+                self._check(e, 'e'),
+                self._extensions['thumbnail']
+            ),
+            timeout = self.timeout
         ).content
 
     def getVideoData(self, season: int, episode: int, filepath: str, quality: int = 1080) -> int:
         """
         Get the actual video data from the CDN.
 
-        :param season: Season number
-        :param episode: Episode number
+        :param season:   Season number
+        :param episode:  Episode number
         :param filepath: Where to store the downloaded video.
-        :param quality: `1080` for 1080p, (Other options: `2160`, `1440`, `720`, `480`, `360`, `240`)
+        :param quality:  `1080` for 1080p, (Other options: `2160`, `1440`, `720`, `480`, `360`, `240`)
 
         :returns: The error code.
         """
@@ -216,9 +201,14 @@ class API:
         if quality not in self._video_qualities:
             raise ValueError("Invalid quality parameter!")
 
-        # return requests.get(f"{self.cdn}/{season}/{episode}/{quality}.{self.extensions['video']}").content
         return self._download(
-            f"{self._cdn}/{self._check(season, 's')}/{self._check(episode, 'e')}/{quality}.{self._extensions['video']}",
+            "{0}/{1}/{2}/{3}.{4}".format(
+                self._cdn,
+                self._check(season, 's'),
+                self._check(episode, 'e'),
+                quality,
+                self._extensions['video']
+            ),
             filepath,
             season,
             episode
@@ -228,10 +218,10 @@ class API:
         """
         Get subtitles of season <s> episode <e>.
 
-        :param s: Season number.
-        :param e: Episode number.
+        :param s:        Season number.
+        :param e:        Episode number.
         :param language: The language to download. (Country code like `en` for English)
-        :param dl_all: Download all available subtitles.
+        :param dl_all:   Download all available subtitles.
 
         :returns: A dictionary containing the subtitles in <bytes>. Returns an empty dictionary if no subtitles are found.
         """
@@ -239,10 +229,16 @@ class API:
         if dl_all:
             episode_metadata = self.getMetadata(int(s), int(e))
             result = {}
-            for tracks in json.loads(episode_metadata.content)["tracks"]:
-                result[tracks["srclang"]] = requests.get(
-                    f"{self._cdn}/subs/{self._check(s, 's')}/{self._check(e, 'e')}.{tracks['srclang']}.{self._extensions['subtitles']}",
-                    timeout=self.timeout
+            for tracks in json.loads(episode_metadata.content)["pageProps"]["video"]["tracks"]:
+                result[tracks["srclang"]] = httpx.get(
+                    "{0}/subs/{1}/{2}.{3}.{4}".format(
+                        self._cdn,
+                        self._check(s, 's'),
+                        self._check(e, 'e'),
+                        tracks['srclang'],
+                        self._extensions['subtitles']
+                    ),
+                    timeout = self.timeout
                 ).content
 
             return result
@@ -251,9 +247,16 @@ class API:
             if language is None:
                 raise ValueError("You need to set `language` if dl_all is False.")
 
-            r = requests.get(
-                f"{self._cdn}/subs/{self._check(s, 's')}/{self._check(e, 'e')}.{language}.{self._extensions['subtitles']}",
-                timeout=self.timeout
+            r = httpx.get(
+                # <root>/subs/<season>/<episode>.<language>.<extension>
+                "{0}/subs/{1}/{2}.{3}.{4}".format(
+                    self._cdn,
+                    self._check(s, 's'),
+                    self._check(e, 'e'),
+                    language,
+                    self._extensions['subtitles']
+                ),
+                timeout = self.timeout
             )
             if r.status_code == 200:
                 return {language: r.content}
@@ -272,7 +275,7 @@ class API:
         :returns: NFO output.
         """
 
-        meta: dict[str, Any] = json.loads(self.getMetadata(s, e).content)
+        meta: dict[str, Any] = json.loads(self.getMetadata(s, e).content)["pageProps"]["video"]
         title: str = meta.get("title", "Unus Annus")
 
         # Process the plot.
@@ -436,7 +439,7 @@ if __name__ == "__main__":
             else:
                 i = 1
 
-    except(IndexError, ValueError):
+    except (IndexError, ValueError):
         print(f"USAGE: {sys.argv[0]} <season number> <episode number> <optional quality>")
         print(f"USAGE: {sys.argv[0]} <season number> <episode number range> <optional quality>")
         print()
