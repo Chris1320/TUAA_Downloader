@@ -127,7 +127,8 @@ class API:
 
             return 0 if downloaded_size == total else 1
 
-    def _check(self, value: int | None, vtype: str | None) -> str:
+    @staticmethod
+    def _check(value: int | None, vtype: str | None) -> str:
         """
         Check if the value is right, depending on type.
 
@@ -327,7 +328,7 @@ class API:
 </episodedetails>"""
 
 
-class Main():
+class Main:
     def __init__(self, season: int, episode: int, quality: int = 1080, metadata_only: bool = False):
         self.s = season
         self.e = episode
