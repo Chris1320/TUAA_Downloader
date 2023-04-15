@@ -53,13 +53,11 @@ class HTMLFilter(HTMLParser):
 class API:
     def __init__(self, timeout: int = 60):
         """
-        The initialization method of API() class.
-
         :param timeout: The timeout of the httpx module in seconds.
         """
 
-        self._cdn = "https://stream.unusann.us"  # This is where the video files are stored.
-        self._endpoint = "https://unusann.us/_next/data/hqwEj90Ew_dssBEL-q5jv"  # Updated API endpoint.
+        self._cdn = "https://stream.unusann.us"
+        self._endpoint = "https://unusann.us"
 
         self.timeout: int = timeout  # Timeout for httpx
 
@@ -150,7 +148,7 @@ class API:
 
         return str(value)
 
-    def getMetadata(self, s: Optional[int | str] = None, e: Optional[int | str] = None, dl_all: bool = False) -> httpx.Response:
+    def getMetadata(self, s: Optional[int | str] = None, e: Optional[int | str] = None, dl_all: bool = False) -> dict[str, Any]:
         """
         Get episode <e> of season <s> metadata from <self.endpoint>.
 
@@ -161,13 +159,10 @@ class API:
         :returns: httpx response object.
         """
 
-        target = f"{self._endpoint}/en.json" if dl_all else "{0}/en/watch/s{1}.e{2}.json".format(
-            self._endpoint,
-            self._checkValueFormat(s, 's'),
-            self._checkValueFormat(e, 'e')
-        )
-
-        return httpx.get(target, timeout=self.timeout)
+        # This downloads the whole page and then parses it, which is not the best way to do it.
+        page: str = httpx.get(self._endpoint, timeout=self.timeout).text
+        data: dict[str, Any] = json.loads(page.partition("<script id=\"__NEXT_DATA__\" type=\"application/json\">")[2].partition("</script>")[0])
+        return data["props"]["pageProps"] if dl_all else data["props"]["pageProps"]["seasons"][int(s)][int(e) - 1]  # type: ignore
 
     def getThumbnail(self, s: int, e: int) -> tuple[str, bytes]:
         """
@@ -238,9 +233,9 @@ class API:
         """
 
         if dl_all:
-            episode_metadata = self.getMetadata(int(s), int(e))
+            episode_metadata = self.getMetadata(s, e)
             result = {}
-            for tracks in json.loads(episode_metadata.content)["pageProps"]["video"]["tracks"]:
+            for tracks in episode_metadata["tracks"]:
                 result[tracks["srclang"]] = httpx.get(
                     "{0}/subs/{1}/{2}.{3}.{4}".format(
                         self._cdn,
@@ -286,7 +281,7 @@ class API:
         :returns: NFO output.
         """
 
-        meta: dict[str, Any] = json.loads(self.getMetadata(s, e).content)["pageProps"]["video"]
+        meta: dict[str, Any] = self.getMetadata(s, e)
         title: str = meta.get("title", "Unus Annus")
 
         # Process the plot.
@@ -347,7 +342,7 @@ class Main:
         sf = f"Season {s}"  # Season folder
         ef = os.path.join(f"{sf}", f"Unus Annus S{self.s}E{self.e}")  # Episode folder
 
-        if "error" in json.loads(self._api.getMetadata(s, e).content):
+        if "error" in self._api.getMetadata(s, e):
             print("Episode not found!")
             return 1
 
