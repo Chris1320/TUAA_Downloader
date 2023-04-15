@@ -2,7 +2,7 @@
 The Unus Annus Archive Downloader (TUAA Downloader)
 
 A python script I made for downloading videos from the Unus Annus Archive (https://unusann.us/).
-This script is tested on *Windows 10/11*, Termux (Android), and *Kali Linux*.
+This script is tested on *Windows 10/11*, *Termux* (Android), and *Kali Linux*.
 
 Usage: `$ python tuaa.py <season> <episode|episode range> <quality>`
 
@@ -19,6 +19,8 @@ import json
 import datetime
 
 from typing import Any
+from typing import Final
+from typing import Optional
 from html.parser import HTMLParser
 
 try:
@@ -30,11 +32,11 @@ except ImportError:  # httpx module is required.
 
 try:
     from tqdm import tqdm
-    TQDM_INSTALLED = True
+    TQDM_INSTALLED: Final[bool] = True
 
 except ImportError:  # tqdm module is optional.
     print("[i] tqdm module in not installed, falling back to old progress bar.")
-    TQDM_INSTALLED = False
+    TQDM_INSTALLED: Final[bool] = False  # type: ignore
 
 
 class HTMLFilter(HTMLParser):
@@ -42,7 +44,7 @@ class HTMLFilter(HTMLParser):
     Filters out all HTML tags.
     """
 
-    text: str = ""
+    text: str = ''
 
     def handle_data(self, data: str):
         self.text += data
@@ -62,7 +64,7 @@ class API:
         self.timeout: int = timeout  # Timeout for httpx
 
     @property
-    def _extensions(self) -> dict[str, Any]:
+    def _extensions(self) -> dict[str, str | list[str]]:
         return {
             "video": "mp4",
             "subtitles": "vtt",
@@ -74,7 +76,7 @@ class API:
     def _video_qualities(self) -> tuple[int, ...]:
         return (2160, 1440, 1080, 720, 480, 360, 240)
 
-    def _download(self, url: str, fname: str, s: int | None = None, e: int | None = None) -> int:
+    def _download(self, url: str, fname: str, s: Optional[int] = None, e: Optional[int] = None) -> int:
         """
         Download <url> with tqdm progress bar.
 
@@ -128,7 +130,7 @@ class API:
             return 0 if downloaded_size == total else 1
 
     @staticmethod
-    def _check(value: int | None, vtype: str | None) -> str:
+    def _checkValueFormat(value: Optional[int], vtype: Optional[str]) -> str:
         """
         Check if the value is right, depending on type.
 
@@ -144,11 +146,11 @@ class API:
 
         elif vtype == 'e':
             while len(str(value)) < 3:
-                value = "0" + str(value)  # type: ignore
+                value = f"0{value}"  # type: ignore
 
         return str(value)
 
-    def getMetadata(self, s: int | None = None, e: int | None = None, dl_all: bool = False) -> httpx.Response:
+    def getMetadata(self, s: Optional[int] = None, e: Optional[int] = None, dl_all: bool = False) -> httpx.Response:
         """
         Get episode <e> of season <s> metadata from <self.endpoint>.
 
@@ -161,8 +163,8 @@ class API:
 
         target = f"{self._endpoint}/en.json" if dl_all else "{0}/en/watch/s{1}.e{2}.json".format(
             self._endpoint,
-            self._check(s, 's'),
-            self._check(e, 'e')
+            self._checkValueFormat(s, 's'),
+            self._checkValueFormat(e, 'e')
         )
 
         return httpx.get(target, timeout=self.timeout)
@@ -181,8 +183,8 @@ class API:
             result = httpx.get(
                 "{0}/thumbnails/{1}/{2}.{3}".format(
                     self._cdn,
-                    self._check(s, 's'),
-                    self._check(e, 'e'),
+                    self._checkValueFormat(s, 's'),
+                    self._checkValueFormat(e, 'e'),
                     thumbnail_ext
                 ),
                 timeout = self.timeout
@@ -213,8 +215,8 @@ class API:
         return self._download(
             "{0}/{1}/{2}/{3}.{4}".format(
                 self._cdn,
-                self._check(season, 's'),
-                self._check(episode, 'e'),
+                self._checkValueFormat(season, 's'),
+                self._checkValueFormat(episode, 'e'),
                 quality,
                 self._extensions['video']
             ),
@@ -242,8 +244,8 @@ class API:
                 result[tracks["srclang"]] = httpx.get(
                     "{0}/subs/{1}/{2}.{3}.{4}".format(
                         self._cdn,
-                        self._check(s, 's'),
-                        self._check(e, 'e'),
+                        self._checkValueFormat(s, 's'),
+                        self._checkValueFormat(e, 'e'),
                         tracks['srclang'],
                         self._extensions['subtitles']
                     ),
@@ -260,8 +262,8 @@ class API:
                 # <root>/subs/<season>/<episode>.<language>.<extension>
                 "{0}/subs/{1}/{2}.{3}.{4}".format(
                     self._cdn,
-                    self._check(s, 's'),
-                    self._check(e, 'e'),
+                    self._checkValueFormat(s, 's'),
+                    self._checkValueFormat(e, 'e'),
                     language,
                     self._extensions['subtitles']
                 ),
@@ -339,8 +341,8 @@ class Main:
         self.retries = 3  # Maximum retries
 
     def main(self) -> int:
-        s = self._api._check(self.s, 's')
-        e = self._api._check(self.e, 'e')
+        s = self._api._checkValueFormat(self.s, 's')
+        e = self._api._checkValueFormat(self.e, 'e')
         filename = f"Unus Annus S{self.s}E{self.e}"
         sf = f"Season {s}"  # Season folder
         ef = os.path.join(f"{sf}", f"Unus Annus S{self.s}E{self.e}")  # Episode folder
