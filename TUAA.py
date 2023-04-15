@@ -58,7 +58,7 @@ class API:
         :param timeout: The timeout of the httpx module in seconds.
         """
 
-        self._cdn = "https://usc1.contabostorage.com/a7f68355d8c442d8a7a1076a0ac5d924:videos"  # This is where the video files are stored.
+        self._cdn = "https://stream.unusann.us"  # This is where the video files are stored.
         self._endpoint = "https://unusann.us/_next/data/hqwEj90Ew_dssBEL-q5jv"  # Updated API endpoint.
 
         self.timeout: int = timeout  # Timeout for httpx
@@ -130,7 +130,7 @@ class API:
             return 0 if downloaded_size == total else 1
 
     @staticmethod
-    def _checkValueFormat(value: Optional[int], vtype: Optional[str]) -> str:
+    def _checkValueFormat(value: Optional[int | str], vtype: Optional[str]) -> str:
         """
         Check if the value is right, depending on type.
 
@@ -150,7 +150,7 @@ class API:
 
         return str(value)
 
-    def getMetadata(self, s: Optional[int] = None, e: Optional[int] = None, dl_all: bool = False) -> httpx.Response:
+    def getMetadata(self, s: Optional[int | str] = None, e: Optional[int | str] = None, dl_all: bool = False) -> httpx.Response:
         """
         Get episode <e> of season <s> metadata from <self.endpoint>.
 
@@ -347,7 +347,7 @@ class Main:
         sf = f"Season {s}"  # Season folder
         ef = os.path.join(f"{sf}", f"Unus Annus S{self.s}E{self.e}")  # Episode folder
 
-        if "error" in json.loads(self._api.getMetadata(s, e).content):  # type: ignore
+        if "error" in json.loads(self._api.getMetadata(s, e).content):
             print("Episode not found!")
             return 1
 
